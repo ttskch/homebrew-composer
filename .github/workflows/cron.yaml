@@ -1,0 +1,89 @@
+name: cron
+
+on:
+  schedule:
+    - cron: "0 15 * * *" # 00:00 JST
+
+jobs:
+  # https://zenn.dev/snowcait/articles/903d86d668fcb7
+  deploy:
+    runs-on: ubuntu-latest
+
+    # https://stackoverflow.com/questions/72851548/permission-denied-to-github-actionsbot#answer-76645503
+    # https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
+    permissions:
+      contents: write
+
+    steps:
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.3
+
+      - uses: actions/checkout@v4
+
+      - name: Get Composer cache directory path
+        id: composer-cache-dir-path
+        run: echo "path=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache-dir-path.outputs.path }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install Composer Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --working-dir=lib
+
+      - name: Build formulas
+        run: php lib/build.php
+
+      - name: Check diff
+        id: diff
+        run: |
+          git add -N .
+          git diff --name-only --exit-code
+        continue-on-error: true
+
+      - name: Commit and push to GitHub if needed
+        if: steps.diff.outcome == 'failure'
+        # https://github.com/actions/checkout/issues/13#issuecomment-724415212
+        run: |
+          set -x
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .
+          git commit --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>" -m "Automatically committed"
+          git push
+
+  # prevent scheduled workflows from being disabled automatically
+  # https://docs.github.com/en/actions/using-workflows/disabling-and-enabling-a-workflow
+  ensure_activity:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get current date
+        id: now
+        run: echo "date=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Get last commit date
+        id: last_commit
+        run: echo "date=$(git log -1 --format=%ct)" >> $GITHUB_OUTPUT
+
+      - name: Calculate date difference
+        id: diff
+        run: echo "days=$(expr \( ${{ steps.now.outputs.date }} - ${{ steps.last_commit.outputs.date }} \) / 86400)" >> $GITHUB_OUTPUT
+
+      - name: Push to GitHub an empty commit if needed
+        if: ${{ steps.diff.outputs.days >= 59 }}
+        run: |
+          set -x
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit --allow-empty --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>" -m "Empty commit to ensure activity" -m "" -m "see: https://docs.github.com/en/actions/using-workflows/disabling-and-enabling-a-workflow#:~:text=In%20a%20public%20repository%2C%20scheduled%20workflows%20are%20automatically%20disabled%20when%20no%20repository%20activity%20has%20occurred%20in%2060%20days."
+          git push

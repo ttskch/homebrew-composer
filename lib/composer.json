@@ -1,0 +1,12 @@
+{
+    "require-dev": {
+        "php": "^8.3",
+        "mustache/mustache": "^2.14",
+        "symfony/css-selector": "^7.1",
+        "symfony/dom-crawler": "^7.1",
+        "twig/twig": "^3.10"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

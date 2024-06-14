@@ -20,7 +20,6 @@ $ brew link --force --overwrite ttskch/composer/composer@2.7.6
 ## Uninstallation
 
 ```shell
-$ brew unlink composer@2.7.6
 $ brew uninstall composer@2.7.6
 $ brew untap ttskch/composer
 

@@ -11,7 +11,7 @@ class ComposerAT260 < Formula
     regex(%r{href=.*?/v?(\d+(?:\.\d+)+)/composer\.phar}i)
   end
 
-  depends_on "php"
+  depends_on "php" => :optional
 
   keg_only :versioned_formula
 
